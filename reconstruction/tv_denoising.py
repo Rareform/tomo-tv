@@ -160,7 +160,7 @@ if __name__ == '__main__':
     t0 = time()
     res = tv_denoise_fista(l, weight=0.05, eps=5.e-5)
     t1 = time()
-    print t1 - t0
+    print (t1 - t0)
     plt.figure()
     plt.subplot(121)
     plt.imshow(l, cmap='gray')

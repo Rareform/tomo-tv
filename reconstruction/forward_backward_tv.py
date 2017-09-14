@@ -1,15 +1,69 @@
 import numpy as np
-from tv_denoising import tv_denoise_fista
-from projections import back_projection, projection
+from reconstruction.tv_denoising import tv_denoise_fista
+from reconstruction.projections import back_projection, projection
 from scipy import sparse
+from skimage.morphology import watershed,disk
+from skimage import data
+from skimage.filters import rank
+from skimage.util import img_as_ubyte
+from scipy import ndimage as ndi
 
 # ------------------ Computing energies ---------------------------
+
+def tv(im):
+    """Compute the (isotropic) TV norm of an image"""
+    grad_x1 = np.diff(im, axis=0)
+    grad_x2 = np.diff(im, axis=1)
+    return np.sqrt(grad_x1[:, :-1]**2 + grad_x2[:-1, :]**2)
 
 def tv_norm(im):
     """Compute the (isotropic) TV norm of an image"""
     grad_x1 = np.diff(im, axis=0)
     grad_x2 = np.diff(im, axis=1)
     return np.sqrt(grad_x1[:, :-1]**2 + grad_x2[:-1, :]**2).sum()
+
+def watershedshow(im):
+    image = img_as_ubyte(im)
+    
+    # denoise image
+    denoised = rank.median(image, disk(2))
+    
+    # find continuous region (low gradient -
+    # where less than 10 for this image) --> markers
+    # disk(5) is used here to get a more smooth image
+    markers = rank.gradient(denoised, disk(5)) < 10
+    markers = ndi.label(markers)[0]
+    
+    # local gradient (disk(2) is used to keep edges thin)
+    gradient = rank.gradient(denoised, disk(2))
+    
+    # process the watershed
+    labels = watershed(gradient, markers,watershed_line=True)
+    return labels
+    
+
+def watershed_norm(im):
+    """Compute the Watershed norm of an image"""
+    
+
+    image = img_as_ubyte(im)
+    
+    # denoise image
+    denoised = rank.median(image, disk(2))
+    
+    # find continuous region (low gradient -
+    # where less than 10 for this image) --> markers
+    # disk(5) is used here to get a more smooth image
+    markers = rank.gradient(denoised, disk(5)) < 10
+    markers = ndi.label(markers)[0]
+    
+    # local gradient (disk(2) is used to keep edges thin)
+    gradient = rank.gradient(denoised, disk(2))
+    
+    # process the watershed
+    labels = watershed(gradient, markers,watershed_line=True).sum()
+    return labels
+
 
 def tv_norm_anisotropic(im):
     """Compute the anisotropic TV norm of an image"""
@@ -91,7 +145,7 @@ def fista_tv(y, beta, niter, H, verbose=0, mask=None):
     t_old = 1
     for i in range(niter):
         if verbose:
-            print i
+            print (i)
         eps = 1.e-4
         err = H * x - y
         back_proj = Ht * err
