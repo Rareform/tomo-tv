@@ -10,7 +10,7 @@ from scipy import ndimage as ndi
 
 # ------------------ Computing energies ---------------------------
 
-def tv(im):
+def gradientshow(im):
     """Compute the (isotropic) TV norm of an image"""
     grad_x1 = np.diff(im, axis=0)
     grad_x2 = np.diff(im, axis=1)
@@ -44,12 +44,13 @@ def watershedshow(im):
 
 def watershed_norm(im):
     """Compute the Watershed norm of an image"""
-    
 
-    image = img_as_ubyte(im)
+    im *= 1.0/im.max() 
+    #print(im)
+    im = img_as_ubyte(im)
     
     # denoise image
-    denoised = rank.median(image, disk(2))
+    denoised = rank.median(im , disk(2))
     
     # find continuous region (low gradient -
     # where less than 10 for this image) --> markers
@@ -73,7 +74,7 @@ def tv_norm_anisotropic(im):
 
 # ------------------ Proximal iterators ----------------------------
 
-def fista_tv(y, beta, niter, H, verbose=0, mask=None):
+def fista_tv(y, beta, niter, H, verbose=0, mask=None, norm="totalvar"):
     """
     TV regression using FISTA algorithm
     (Fast Iterative Shrinkage/Thresholding Algorithm)
@@ -163,7 +164,14 @@ def fista_tv(y, beta, niter, H, verbose=0, mask=None):
         u_old = u_n
         res.append(x)
         data_fidelity_err = 1./2 * (err**2).sum()
-        tv_value = beta * tv_norm(x)
+        if (norm=="totalvar"):
+            tv_value = beta * tv_norm(x)
+        elif (norm == "watershed"):
+            tv_value = beta * watershed_norm(x)
+        elif (norm=="constant"):
+            tv_value =beta *np.random.poisson(lam= 10000)
+        
+        
         energy = data_fidelity_err + tv_value
         energies.append(energy)
         if mask is not None:
